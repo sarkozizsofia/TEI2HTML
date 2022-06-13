@@ -11,10 +11,10 @@ from multiprocessing import Pool
 from tei_to_html_utils import file_gen_from_zip, create_new_tag_with_string
 
 
-HTML = '<html><head itemscope itemtype="http://schema.org/NewsArticle"><link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.4.0/css/font-awesome.min.css"><style></style></head></html>'
-CSS = 'div.meta {display: block;margin-left: 50pt;text-align: bold; color: green;}' \
-      'figure:before{content: \'\\f082\';}' #div {background-color: lightgrey;width: 300px;border: 15px solid green;padding: 50px;margin: 20px;}'
+HTML = '<html><head itemscope itemtype="http://schema.org/NewsArticle"><style></style></script></head></html> '
+# <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous">
 # TODO CSS: note > hide
+# https://www.w3schools.com/icons/tryit.asp?filename=trybs_ref_glyph_camera
 # <div class="meta">
 # <i style='font-size:24px' class='fas'>&#xf083;</i> https://www.w3schools.com/icons/icons_reference.asp
 
@@ -106,23 +106,37 @@ def validate_html(html_obj, url):
         # meta_for_human = out_html.new_tag('div', attrs={'class': 'meta'})
         if 'src' in fig.attrs.keys():
             # embedded_content
-            if fig.attrs['class'] == 'embedded_content':
-                fig.name = 'iframe'
+            """if fig.attrs['class'] == 'embedded_content':
+                fig.name = 'iframe'"""
                 #new_img = html_obj.new_tag('iframe', attrs={'src': fig['src']})
+                #else:
+            button = html_obj.new_tag('button', {'style': 'font-size:40px'})
+            #button.string = '&#187;'
+            #new_img = html_obj.new_tag('img', attrs={'src': fig['src']})#, 'target': '_blank'})
+            new_img = html_obj.new_tag('a', attrs={'href': fig['src']})  # , 'target': '_blank'})
+            #new_img = html_obj.new_tag('img')
+            #<button style='font-size:24px'>Button <i class='fab fa-500px'></i></button>
+            # <i class='fas fa-external-link-alt'></i>
+            new_img.string = fig['src']
+            #icon = html_obj.new_tag('a', attrs={'href': fig['src']}) #attrs={'class': 'fas fa-external-link-alt'})# <i class="fas fa-cat"></i>
+            #new_img.append(icon)
+            button.append(new_img)
+            if fig.find() is not None:
+                #fig.find().insert_before(new_img)
+                fig.find().insert_before(button)
             else:
-                new_img = html_obj.new_tag('img', attrs={'src': fig['src']})
-                if fig.find() is not None:
-                    fig.find().insert_before(new_img)
-                else:
-                    fig.append(new_img)
-                del fig['src']
+                # fig.append(new_img)
+                fig.append(button)
+            del fig['src']
+    for p in html_obj.find_all('div', {'class': 'page'}):
+        print(url)
 
-    if html_obj.find('div', {'class': 'frame'}) is not None: # and html_obj.find(True, {'class': 'embedded_content'}) is not None:
+    """if html_obj.find('div', {'class': 'frame'}) is not None: # and html_obj.find(True, {'class': 'embedded_content'}) is not None:
         print('>>>FRAME', url)
     if html_obj.find(True, {'class': 'embedded_content'}) is not None:
         print('>>>EMBED', url)
     if html_obj.find(True, {'class': 'lead'}) is not None:
-        print('>>>LEAD', url)
+        print('>>>LEAD', url)"""
             # print(url, fig)
 # <figure rend="media_content">
 # <figure rend="diagram">
@@ -140,7 +154,6 @@ def change_body_tags(bs_html, f_uuid):
                 tag.name = HI_DICT[tag.attrs['rend']]
             else:
                 tag.name = 'em'
-                print('>>>EM', f_uuid)
             tag.attrs = {}
         elif tag.name == 'p' and tag.attrs.get('rend', None) == 'head':
             tag.name = 'h3'
@@ -156,13 +169,11 @@ def change_body_tags(bs_html, f_uuid):
         else:
             tag_name = tag.name
             tag_attrs = tag.attrs
-            if tag_name == 'div' and tag_attrs['type'] == 'feed':
+            if tag_name == 'div' and 'type' in tag_attrs.keys() and tag_attrs['type'] == 'feed':
                 print('>>>FEED', f_uuid)
             isname = FREE.get(tag_name)
             if isname is not None:
                 tag.name = isname
-            #else:
-            #    print('WHAT?', tag_name)
             if tag_attrs != {}:
                 # <figure facs="https://ad.adverticum.net/t/?z=6653496&amp;g=6653497&amp;b=665349900&amp;h=%5BLOCATION%5D&amp;p=2" rend="embedded_content" resp="script" type="corrected">
                 new_attrs = {}
@@ -174,11 +185,11 @@ def change_body_tags(bs_html, f_uuid):
                         new_attrs[k] = v
                 tag.attrs = new_attrs
             if tag.name == 'div':
-                tag.attrs['class'] = tag.attrs['type']
-                # print(f_uuid)
-                del tag.attrs['type']
-                # <floatingText type='frame'>
-                # <floatingText type='lead'>
+                if 'type' in tag.attrs.keys():
+                    tag.attrs['class'] = tag.attrs['type']
+                    del tag.attrs['type']
+                    # <floatingText type='frame'>
+                    # <floatingText type='lead'>
 
     for tag in html_body.find_all('to_unwrap'):
         tag.unwrap()
@@ -232,7 +243,8 @@ if __name__ == '__main__':
     #inp_zip_dir = '/home/dh/PycharmProjects/TEI2HTML'#
     inp_zip_dir = '/media/eltedh/6EAB565C0EA732DB/TEI_zips'
     out_xml_dir = 'HTMLs'
-    selected_zips = ['abcug.zip']#'telex.zip'] # 'mosthallottam.zip'] #
+    selected_zips = ['telex.zip']  # 'mosthallottam.zip'] #
+    #selected_zips = ['tei2html_test.zip']  # 'telex.zip']
     process_portal_zip_to_htmls(inp_zip_dir, out_xml_dir, selected_zips)
 
     # archive_path = '/media/eltedh/6EAB565C0EA732DB/TEI_zips'
