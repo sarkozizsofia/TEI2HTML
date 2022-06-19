@@ -10,7 +10,6 @@ from multiprocessing import Pool
 
 from tei_to_html_utils import file_gen_from_zip, create_new_tag_with_string
 
-
 HTML = '<html><head itemscope itemtype="http://schema.org/NewsArticle"><style></style></script></head></html> '
 # <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous">
 # TODO CSS: note > hide
@@ -31,7 +30,7 @@ HI_DICT = {
     'strikeout': 'strike',
     'superscript': 'sup',
     'subscript': 'sub'
-        }
+}
 
 FREE = {
     'cell': 'td',
@@ -56,38 +55,37 @@ FREE_ATTRS = {
     'facs': 'src',
     'type': 'type',
     'rend': 'class'}
-    # tag.attrs['resp'] = 'script'
-
-
-# <head itemscope itemtype="http://schema.org/Article">
-#   <meta itemprop="name" content="The Name or Title Here">
-#   <meta itemprop="description" content="This is the page description">
-#   <link itemprop="image" href="http://www.example.com/image.jpg">
-# </head>
+#  tag.attrs['resp'] = 'script'
 
 META_KEYS = {'sch:datePublished': 'Közzététel dátuma:', 'sch:dateModified': 'Módosítás dátuma:',
              'sch:author': 'Szerzők:', 'sch:source': 'Forrás:', 'sch:articleSection': 'Rovat:',
-             'sch:keywords': 'Kulcsszavak:', 'sch:url': 'URL:'}  # TODO: ezt kaphatná a main fv
+             'sch:keywords': 'Kulcsszavak:', 'sch:url': 'URL:'}
 
 
-def get_article_data(bs_xml):
+def get_article_data(bsxml, uuid):
+    #if uuid == '61989946-eb03-5559-b68c-d5db60b2d3aa':
+    #    print(bsxml)
     meta_d = {}
-    for m_key in META_KEYS.keys():  # {'sch:articleSection', 'sch:keywords'}
-        meta_val_list = [meta_val.text.strip() for meta_val in bs_xml.find_all(m_key)]
+    for m_key in META_KEYS.keys():
+        meta_val_list = [meta_val.text.strip() for meta_val in bsxml.find_all(m_key)]
         if len(meta_val_list) > 0:
             if m_key == 'sch:datePublished':
                 meta_d[META_KEYS[m_key]] = meta_val_list[0].replace('T', ' ')
             else:
                 meta_d[META_KEYS[m_key]] = ', '.join(meta_val_list)
+    if bsxml.find('div', {'type': 'page'}) is not None:
+        urls = [u.attrs['source'] for u in bsxml.find_all('div', {'type': 'page'})]
+        meta_d[META_KEYS['URL:']] = '\n'.join(urls)
+        print(urls)
     return meta_d
 
 
-def fill_meta_block(input_bs, out_html):
+def fill_meta_block(input_bs, out_html, a_uuid):
     xenodata = input_bs.find('xenoData').find('rdf:Description')
     head = out_html.head
     meta_for_human = out_html.new_tag('div', attrs={'class': 'meta'})
     # print(meta_for_human)
-    meta_dict = get_article_data(input_bs)
+    meta_dict = get_article_data(input_bs, a_uuid)
     for mkey, mval in meta_dict.items():
         a_meta = out_html.new_tag('p')  # a_meta = out_html.new_tag('b')
         a_meta.string = f'{mkey} {mval}'
@@ -103,41 +101,24 @@ def fill_meta_block(input_bs, out_html):
 def validate_html(html_obj, url):
     #  <figure class="media_content" src="https://www.mosthallottam.hu/wp-content/uploads/2020/11/ev-rovara-2021.jpg">
     for fig in html_obj.find_all('figure'):
-        # meta_for_human = out_html.new_tag('div', attrs={'class': 'meta'})
         if 'src' in fig.attrs.keys():
             # embedded_content
             """if fig.attrs['class'] == 'embedded_content':
                 fig.name = 'iframe'"""
-                #new_img = html_obj.new_tag('iframe', attrs={'src': fig['src']})
-                #else:
             button = html_obj.new_tag('button', {'style': 'font-size:40px'})
-            #button.string = '&#187;'
-            #new_img = html_obj.new_tag('img', attrs={'src': fig['src']})#, 'target': '_blank'})
-            new_img = html_obj.new_tag('a', attrs={'href': fig['src']})  # , 'target': '_blank'})
-            #new_img = html_obj.new_tag('img')
-            #<button style='font-size:24px'>Button <i class='fab fa-500px'></i></button>
-            # <i class='fas fa-external-link-alt'></i>
+            new_img = html_obj.new_tag('a', attrs={'href': fig['src']})
             new_img.string = fig['src']
-            #icon = html_obj.new_tag('a', attrs={'href': fig['src']}) #attrs={'class': 'fas fa-external-link-alt'})# <i class="fas fa-cat"></i>
-            #new_img.append(icon)
+            button.string = 'A linken található erőforrás nem része az archívumnak, ezért nem kerül megjelenítésre.'
             button.append(new_img)
             if fig.find() is not None:
-                #fig.find().insert_before(new_img)
                 fig.find().insert_before(button)
             else:
-                # fig.append(new_img)
                 fig.append(button)
             del fig['src']
     for p in html_obj.find_all('div', {'class': 'page'}):
         print(url)
 
-    """if html_obj.find('div', {'class': 'frame'}) is not None: # and html_obj.find(True, {'class': 'embedded_content'}) is not None:
-        print('>>>FRAME', url)
-    if html_obj.find(True, {'class': 'embedded_content'}) is not None:
-        print('>>>EMBED', url)
-    if html_obj.find(True, {'class': 'lead'}) is not None:
-        print('>>>LEAD', url)"""
-            # print(url, fig)
+
 # <figure rend="media_content">
 # <figure rend="diagram">
 # <figure rend="embedded_content">
@@ -169,8 +150,8 @@ def change_body_tags(bs_html, f_uuid):
         else:
             tag_name = tag.name
             tag_attrs = tag.attrs
-            if tag_name == 'div' and 'type' in tag_attrs.keys() and tag_attrs['type'] == 'feed':
-                print('>>>FEED', f_uuid)
+            #if tag_name == 'div' and 'type' in tag_attrs.keys() and tag_attrs['type'] == 'feed':
+                #print('>>>FEED', f_uuid)
             isname = FREE.get(tag_name)
             if isname is not None:
                 tag.name = isname
@@ -181,7 +162,7 @@ def change_body_tags(bs_html, f_uuid):
                     if k in FREE_ATTRS:
                         new_attrs[FREE_ATTRS[k]] = v
                     else:
-                        #print('WHAT?', k, v, tag)
+                        # print('WHAT?', k, v, tag)
                         new_attrs[k] = v
                 tag.attrs = new_attrs
             if tag.name == 'div':
@@ -199,14 +180,16 @@ def change_body_tags(bs_html, f_uuid):
 def process_and_print_one_article(xml_file, uu):
     bs_xml = BeautifulSoup(xml_file, features='xml')
     # bs_html = BeautifulSoup(str(bs_xml.body), features='html.parser')
+    if uu == '61989946-eb03-5559-b68c-d5db60b2d3aa':
+        print(bs_xml)
     bs_html = BeautifulSoup(HTML, features='html.parser')
     css = open('tei2html.css', 'r')
     bs_html.style.string = css.read()
     bs_html.head.insert_after(bs_xml.body)
-    meta_for_human_block = fill_meta_block(bs_xml, bs_html)
+    meta_for_human_block = fill_meta_block(bs_xml, bs_html, uu)
     change_body_tags(bs_html, uu)
     bs_html.h1.insert_after(meta_for_human_block)
-    #print(bs_html)
+    # print(bs_html)
     return bs_html
 
 
@@ -230,6 +213,7 @@ def process_portal_zip_to_htmls(archive_path_fold, out_folder, selected, suf='_2
                         # pretty_xml = prettify_beta(str(article_as_html))
                         # print(pretty_xml, file=output_html)
 
+
 # TODO: INFOGRAM: file:///home/eltedh/PycharmProjects/TEI2HTML/HTMLs/abcug/263ae88e-93e9-566f-ac11-df581b46af4b.html
 
 
@@ -240,10 +224,10 @@ if __name__ == '__main__':
     parser.add_argument('--selected_zips', type=str, required=False, default='all')
     args = parser.parse_args()
     process_portal_zip_to_htmls(args.inp_zip_dir, args.out_xml_dir, args.selected_zips)"""
-    #inp_zip_dir = '/home/dh/PycharmProjects/TEI2HTML'#
+    # inp_zip_dir = '/home/dh/PycharmProjects/TEI2HTML'#
     inp_zip_dir = '/media/eltedh/6EAB565C0EA732DB/TEI_zips'
     out_xml_dir = 'HTMLs'
-    selected_zips = ['telex.zip']  # 'mosthallottam.zip'] #
+    selected_zips = ['p444.zip']  # 'mosthallottam.zip'] #
     #selected_zips = ['tei2html_test.zip']  # 'telex.zip']
     process_portal_zip_to_htmls(inp_zip_dir, out_xml_dir, selected_zips)
 
