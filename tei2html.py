@@ -91,6 +91,11 @@ def validate_html(html_obj):
             else:
                 fig.append(button)
             del fig['src']
+    for page in html_obj.find_all('div', {'class': 'page'}):
+        page.attrs['data-href'] = page.attrs['source']
+        del page.attrs['source']
+
+# TODO: <figure class="media_content" resp="script" type="corrected">
 
 
 def change_body_tags(bs_html):
@@ -180,7 +185,7 @@ if __name__ == '__main__':
     # inp_zip_dir = '/home/dh/PycharmProjects/TEI2HTML'#
     inp_zip_dir = '/media/eltedh/6EAB565C0EA732DB/TEI_zips'
     out_xml_dir = 'HTMLs'
-    selected_zips = ['p444.zip']  # 'mosthallottam.zip'] #
+    selected_zips = ['p444_pagetest.zip']  # 'mosthallottam.zip'] #
     #selected_zips = ['tei2html_test.zip']  # 'telex.zip']
     process_portal_zip_to_htmls(inp_zip_dir, out_xml_dir, selected_zips)
 

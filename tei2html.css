@@ -1,0 +1,53 @@
+html {
+  font-family: Lato;
+  margin: 4em;
+  font-size: 1.4em;
+  border: 2px solid green;
+}
+div[data-href] {
+    border: 15px black;
+}
+
+note {
+    display: none;
+}
+div.meta {
+            display: block;margin-left: 50pt;
+            font-weight: bold;
+            color: green;
+            }
+
+div.lead{
+  background-color: LightGray;
+  margin-left: 10px;
+  margin-right: 10px;
+  padding: 15px;
+}
+
+div.feed{
+  border: 2px solid blue;
+  border-radius: 5px;
+  margin-left: 400px;
+  margin-right: 400px;
+  padding: 15px;
+}
+
+div.social_media_content{
+  background-color: DodgerBlue;
+  margin-left: 10px;
+  margin-right: 10px;
+  padding: 15px;
+  color: white;
+}
+
+div.frame{
+  border: 15px black;
+  background-color: LightBlue;
+  padding: 15px;
+  margin: 80px;
+}
+
+em {
+  background-color: LightGray;
+}
+
