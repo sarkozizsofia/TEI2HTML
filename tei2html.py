@@ -42,7 +42,7 @@ FREE_ATTRS = {
     'rend': 'class'}
 
 META_KEYS = {'sch:datePublished': 'Közzététel dátuma:', 'sch:dateModified': 'Módosítás dátuma:',
-             'sch:author': 'Szerzők:', 'sch:source': 'Forrás:', 'sch:articleSection': 'Rovat:',
+             'sch:author': 'Szerző:', 'sch:source': 'Forrás:', 'sch:articleSection': 'Rovat:',
              'sch:keywords': 'Kulcsszavak:', 'sch:url': 'URL:'}
 
 
@@ -57,7 +57,7 @@ def get_article_data(bsxml):
                 meta_d[META_KEYS[m_key]] = ', '.join(meta_val_list)
     if bsxml.find('div', {'type': 'page'}) is not None:
         urls = [u.attrs['source'] for u in bsxml.find_all('div', {'type': 'page'})]
-        meta_d['URL:'] = '\n'.join(urls)
+        meta_d['URL:'] = urls
     return meta_d
 
 
@@ -68,7 +68,14 @@ def fill_meta_block(input_bs, out_html):
     meta_dict = get_article_data(input_bs)
     for mkey, mval in meta_dict.items():
         a_meta = out_html.new_tag('p')
-        a_meta.string = f'{mkey} {mval}'
+        if mkey == 'URL:':
+            a_meta.append('URL:')
+            for url in mval:
+                one_page_href = out_html.new_tag('a', attrs={'href': url})
+                one_page_href.string = url
+                a_meta.extend([out_html.new_tag('br'), one_page_href])
+        else:
+            a_meta.string = f'{mkey} {mval}'
         meta_for_human.append(a_meta)
     for x in xenodata.find_all():
         schema_org_meta = out_html.new_tag('meta', attrs={'itemprop': x.name, 'content': x.text.strip()})
@@ -77,7 +84,6 @@ def fill_meta_block(input_bs, out_html):
 
 
 def validate_html(html_obj):
-    #  <figure class="media_content" src="https://www.mosthallottam.hu/wp-content/uploads/2020/11/ev-rovara-2021.jpg">
     for fig in html_obj.find_all('figure'):
         if 'src' in fig.attrs.keys():
             # embedded_content
@@ -95,7 +101,8 @@ def validate_html(html_obj):
         page.attrs['data-href'] = page.attrs['source']
         del page.attrs['source']
 
-# TODO: <figure class="media_content" resp="script" type="corrected">
+# <figure class="media_content" resp="script" type="corrected">
+# <figure class="media_content" src="https://www.mosthallottam.hu/wp-content/uploads/2020/11/ev-rovara-2021.jpg">
 
 
 def change_body_tags(bs_html):
@@ -145,8 +152,6 @@ def change_body_tags(bs_html):
 
 def tei_to_html(xml_file, u):
     bs_xml = BeautifulSoup(xml_file, features='xml')
-    if u =='0a9cd21c-8747-5636-89b5-f987d31e1d3d':
-        print(bs_xml)
     bs_html = BeautifulSoup(HTML, features='html.parser')
     css = open('tei2html.css', 'r')
     bs_html.style.string = css.read()
@@ -157,7 +162,7 @@ def tei_to_html(xml_file, u):
     return bs_html
 
 
-def process_portal_zip_to_htmls(archive_path_fold, out_folder, selected, suf='_2022'):
+def process_portal_zip_to_htmls(archive_path_fold, out_folder, selected):
     print(archive_path_fold)
     out_folder_path = Path(out_folder)
     for archive in glob.iglob(f'{archive_path_fold}/*.zip'):
