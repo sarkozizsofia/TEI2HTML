@@ -69,6 +69,8 @@ def fill_meta_block(input_bs, out_html):
     for mkey, mval in meta_dict.items():
         a_meta = out_html.new_tag('p')
         if mkey == 'URL:':
+            if not isinstance(mval, list):
+                mval = [mval]
             a_meta.append('URL:')
             for url in mval:
                 one_page_href = out_html.new_tag('a', attrs={'href': url})
@@ -190,7 +192,7 @@ if __name__ == '__main__':
     # inp_zip_dir = '/home/dh/PycharmProjects/TEI2HTML'#
     inp_zip_dir = '/media/eltedh/6EAB565C0EA732DB/TEI_zips'
     out_xml_dir = 'HTMLs'
-    selected_zips = ['p444_pagetest.zip']  # 'mosthallottam.zip'] #
+    selected_zips = ['abcug.zip']#'p444_pagetest.zip'] # # # 'mosthallottam.zip'] #
     #selected_zips = ['tei2html_test.zip']  # 'telex.zip']
     process_portal_zip_to_htmls(inp_zip_dir, out_xml_dir, selected_zips)
 
