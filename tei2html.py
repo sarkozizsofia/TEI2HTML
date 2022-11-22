@@ -61,11 +61,51 @@ def get_article_data(bsxml):
     return meta_d
 
 
-def fill_meta_block(input_bs, out_html):
-    xenodata = input_bs.find('xenoData').find('rdf:Description')
+def get_article_data_trafi(bsxml):
+    meta_d = {}
+    for m_key in META_KEYS.keys():
+        meta_val_list = [meta_val.text.strip() for meta_val in bsxml.find_all(m_key)]
+        if len(meta_val_list) > 0:
+            if m_key == 'sch:datePublished':
+                meta_d[META_KEYS[m_key]] = meta_val_list[0].replace('T', ' ')
+            else:
+                meta_d[META_KEYS[m_key]] = ', '.join(meta_val_list)
+    if bsxml.find('div', {'type': 'page'}) is not None:
+        urls = [u.attrs['source'] for u in bsxml.find_all('div', {'type': 'page'})]
+        meta_d['URL:'] = urls
+    sourcedesc = bsxml.find('sourceDesc')
+    authors = [au.text.strip() for au in sourcedesc.find_all('author')]
+    if len(authors) > 0:
+        meta_d['Szerző'] = ', '.join(authors)
+    date_ = sourcedesc.find('date')
+    if date_ is not None:
+        meta_d['Közzététel dátuma:'] = date_.text.strip()
+    url_ = sourcedesc.find('ptr', {'type': 'URL'})
+    if url_ is not None:
+        meta_d['URL:'] = url_.attrs['target']
+    # <ptr type="URL" target="https://www.mirror.co.uk/news/politics/keir-starmer-says-new-lockdown-22938036"/
+    keywords_cont = bsxml.find('keywords')
+    if keywords_cont is not None:
+        keywords = keywords_cont.find('term', {'type': 'tags'})
+        if keywords is not None:
+            meta_d['Kulcsszavak:'] = keywords.text.strip()
+        section = keywords_cont.find('term', {'type': 'categories'})
+        if section is not None:
+            meta_d['Rovat:'] = section.text.strip()
+
+    return meta_d
+
+
+def fill_meta_block(input_bs, out_html, tei_type='eltedh'):
+    if tei_type == 'eltedh':
+        xenodata = input_bs.find('xenoData').find('rdf:Description')
+        meta_dict = get_article_data(input_bs)
+    else:
+        meta_dict = get_article_data_trafi(input_bs)
+        print(meta_dict)
     head = out_html.head
     meta_for_human = out_html.new_tag('div', attrs={'class': 'meta'})
-    meta_dict = get_article_data(input_bs)
+    # meta_dict = get_article_data(input_bs)
     for mkey, mval in meta_dict.items():
         a_meta = out_html.new_tag('p')
         if mkey == 'URL:':
@@ -79,9 +119,11 @@ def fill_meta_block(input_bs, out_html):
         else:
             a_meta.string = f'{mkey} {mval}'
         meta_for_human.append(a_meta)
-    for x in xenodata.find_all():
-        schema_org_meta = out_html.new_tag('meta', attrs={'itemprop': x.name, 'content': x.text.strip()})
-        head.append(schema_org_meta)
+        print(meta_for_human)
+    if tei_type == 'eltedh':
+        for x in xenodata.find_all():
+            schema_org_meta = out_html.new_tag('meta', attrs={'itemprop': x.name, 'content': x.text.strip()})
+            head.append(schema_org_meta)
     return meta_for_human
 
 
@@ -120,6 +162,7 @@ def change_body_tags(bs_html):
             tag.name = 'h3'
             tag.attrs = {}
         elif tag.name == 'head' and tag.attrs.get('type', None) is not None:
+            # TODO:     title_main = sourcedesc.find('title', {'type': 'main'})
             rend = tag.attrs.get('type')
             if rend == 'title':
                 tag.name = 'h1'
@@ -157,8 +200,20 @@ def tei_to_html(xml_file, u):
     bs_html = BeautifulSoup(HTML, features='html.parser')
     css = open('tei2html.css', 'r')
     bs_html.style.string = css.read()
-    meta_for_human_block = fill_meta_block(bs_xml, bs_html)
+    if bs_xml.find('xenoData') is not None:
+        meta_for_human_block = fill_meta_block(bs_xml, bs_html, 'eltedh')
+    else:
+        meta_for_human_block = fill_meta_block(bs_xml, bs_html, 'trafi')
+        title_main = bs_xml.find('title', {'type': 'main'})
+        # TODO:     title_sub = sourcedesc.find('title', {'type': '???'})
+        title_main.name = 'head'
+        title_main.attrs = {'type': 'title'}
+        print(title_main)
+        bs_xml.find('div', {'type': 'entry'}).insert_before(title_main)
+        print(bs_xml)
+        # <div type="entry">   trafilatura cikktörzs
     bs_html.head.insert_after(bs_xml.body)
+
     change_body_tags(bs_html)
     bs_html.h1.insert_after(meta_for_human_block)
     return bs_html
@@ -189,10 +244,10 @@ if __name__ == '__main__':
     parser.add_argument('--selected_zips', type=str, required=False, default='all')
     args = parser.parse_args()
     process_portal_zip_to_htmls(args.inp_zip_dir, args.out_xml_dir, args.selected_zips)"""
-    # inp_zip_dir = '/home/dh/PycharmProjects/TEI2HTML'#
-    inp_zip_dir = '/media/eltedh/6EAB565C0EA732DB/TEI_zips'
+    inp_zip_dir = '/home/dh/PycharmProjects/TEI2HTML'  #
+    # inp_zip_dir = '/media/eltedh/6EAB565C0EA732DB/TEI_zips'
     out_xml_dir = 'HTMLs'
-    selected_zips = ['abcug.zip']#'p444_pagetest.zip'] # # # 'mosthallottam.zip'] #
+    selected_zips = ['mirror_politics.zip']  # 'p444_pagetest.zip'] # # # 'mosthallottam.zip'] #
     #selected_zips = ['tei2html_test.zip']  # 'telex.zip']
     process_portal_zip_to_htmls(inp_zip_dir, out_xml_dir, selected_zips)
 
